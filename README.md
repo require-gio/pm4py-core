@@ -21,7 +21,8 @@ parameters = {}
 parameters["optimize"] = True
 # should boundary events be treated as labelled activities?
 parameters['include_events'] = True
-reset_net, initial_marking, final_marking = reset_net_converter.apply(bpmn_graph, variant=reset_net_converter.RESET_VARIANT, parameters=parameters)
+reset_net, initial_marking, final_marking = reset_net_converter.apply(bpmn_graph, 
+variant=reset_net_converter.RESET_VARIANT, parameters=parameters)
 
 gviz = pn_visualizer.apply(reset_net, initial_marking, final_marking)
 pn_visualizer.view(gviz)
