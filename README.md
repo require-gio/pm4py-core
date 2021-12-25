@@ -29,11 +29,11 @@ pn_visualizer.view(gviz)
 ```
 
 Input BPMN model:\
-<img src="cancellation_bpmn.png" alt="drawing" width="700"/>
+<img src="cancellation_bpmn.png" alt="drawing" width="700" style="background-color: white"/>
 
 
 Output reset net:\
-<img src="cancellation_resetnet.png" alt="drawing" width="900"/>
+<img src="cancellation_resetnet.png" alt="drawing" width="900" style="background-color: white"/>
 
 ## Supported Features
 * XOR-,AND-,OR-gateways (block-structured)
