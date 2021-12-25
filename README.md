@@ -1,7 +1,7 @@
 # PM4Py Resetnet
 PM4Py Resetnet is a fork based on the PM4PY library. It has the goal to provide a mapping from BPMN
 to reset nets which require less modeling overhead than Petri nets. 
-The speiality of the approach lies in the support for BPMN models with cancellation features.
+The speciality of the approach lies in the support for BPMN models with cancellation features.
 Thus, a user can import a BPMN model, translate it to a language-equivalent reset net and apply further
 analysis on it.
 
