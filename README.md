@@ -1,29 +1,69 @@
-# PM4Py
-PM4Py is a python library that supports (state-of-the-art) process mining algorithms in python. 
-It is completely open source and intended to be used in both academia and industry projects.
-PM4Py is a product of the Fraunhofer Institute for Applied Information Technology.
+# PM4Py Resetnet
+PM4Py Resetnet is a fork based on the PM4PY library. It has the goal to provide a mapping from BPMN
+to reset nets which require less modeling overhead than Petri nets. 
+The speiality of the approach lies in the support for BPMN models with cancellation features.
+Thus, a user can import a BPMN model, translate it to a language-equivalent reset net and apply further
+analysis on it.
 
-## Documentation / API
-Full documentation of PM4Py is available at http://pm4py.org/
 
-## First Example
-A very simple example, to whet your appetite:
+## Example
+A very simple example how a model with cancellation features is mapped:
 
 ```python
-import pm4py
+import os
+from pm4py.objects.bpmn.importer import importer as bpmn_importer
+from pm4py.objects.conversion.bpmn import converter as reset_net_converter
+from pm4py.visualization.petri_net import visualizer as pn_visualizer
 
-log = pm4py.read_xes('<path_to_xes_file>')
-process_model = pm4py.discover_bpmn_inductive(log)
-pm4py.view_bpmn(process_model)
+bpmn_graph = bpmn_importer.apply(os.path.join("tests","input_data","cancellation.bpmn"))
+parameters = {}
+# should the amount of reset arcs be minimized wherever possible?
+parameters["optimize"] = True
+# should boundary events be treated as labelled activities?
+parameters['include_events'] = True
+reset_net, initial_marking, final_marking = reset_net_converter.apply(bpmn_graph, variant=reset_net_converter.RESET_VARIANT, parameters=parameters)
+
+gviz = pn_visualizer.apply(reset_net, initial_marking, final_marking)
+pn_visualizer.view(gviz)
 ```
 
-## Installation
-PM4Py can be installed on Python 3.7.x / 3.8.x / 3.9.x by doing:
-`pip install -U pm4py`
+Input BPMN model:\
+<img src="cancellation_bpmn.png" alt="drawing" width="700"/>
 
-## Change Log
-We track all changes in our [*CHANGELOG*](https://github.com/pm4py/pm4py-core/blob/release/CHANGELOG.md) file.
 
-## Third Party Dependencies
-As scientific library in the Python ecosystem, we rely on external libraries to offer our features.
-Please check the [*README.THIRD_PARTY.md*](https://github.com/pm4py/pm4py-core/blob/release/README.THIRD_PARTY.md) file in order to know the dependencies and their license.
+Output reset net:\
+<img src="cancellation_resetnet.png" alt="drawing" width="900"/>
+
+## Supported Features
+* XOR-,AND-,OR-gateways (block-structured)
+* One start event per (sub)process
+* One normal end event per (sub)process
+* Internal cancellation, e.g., error end event inside subprocess + corresponding boundary event attached to subprocess
+* External cancellation, e.g., intermediate message event attached to subprocess (without corresponding end event inside subprocess)
+* Terminate end events
+
+The mapping requires that the input BPMN models fulfil certain structural requirements. In general, only semi-block-structured models are supported.
+For other model types, a proper mapping cannot be guaranteed. Also, note that message flows are not supported.
+The definition for semi-block-structuredness can be given by fulfilling the following rules: \
+<img src="bpmn_semi_block.png" alt="drawing" width="400"/>
+
+
+
+## Difference to PM4PY original work
+The following files differ from the original library:
+* ![#f5dd42](https://via.placeholder.com/15/f5dd42/000000?text=+) `pm4py/objects/bpmn/importer/variants/lxml.py`
+* ![#f5dd42](https://via.placeholder.com/15/f5dd42/000000?text=+) `pm4py/objects/bpmn/exporter/variants/etree.py`
+* ![#f5dd42](https://via.placeholder.com/15/f5dd42/000000?text=+) `pm4py/objects/bpmn/obj.py`
+* ![#f5dd42](https://via.placeholder.com/15/f5dd42/000000?text=+) `pm4py/objects/bpmn/util/__init__.py`
+* ![#f5dd42](https://via.placeholder.com/15/f5dd42/000000?text=+) `pm4py/objects/petri_net/utils/petri_utils.py`
+* ![#f5dd42](https://via.placeholder.com/15/f5dd42/000000?text=+) `pm4py/objects/petri_net/utils/reduction.py`
+* ![#f5dd42](https://via.placeholder.com/15/f5dd42/000000?text=+) `pm4py/objects/conversion/bpmn/variants/__init__.py`
+* ![#f5dd42](https://via.placeholder.com/15/f5dd42/000000?text=+) `pm4py/objects/conversion/bpmn/converter.py`
+* ![#42f551](https://via.placeholder.com/15/42f551/000000?text=+) `pm4py/objects/conversion/bpmn/variants/to_reset_net.py`
+* ![#42f551](https://via.placeholder.com/15/42f551/000000?text=+) `pm4py/objects/conversion/bpmn/util/bpmn_utils.py`
+* ![#42f551](https://via.placeholder.com/15/42f551/000000?text=+) `pm4py/objects/conversion/bpmn/util/block_structure.py`
+* ![#42f551](https://via.placeholder.com/15/42f551/000000?text=+) `bpmn_mapping_example.py`
+
+
+![#f5dd42](https://via.placeholder.com/15/f5dd42/000000?text=+) `indicates changes to existing file`
+![#42f551](https://via.placeholder.com/15/42f551/000000?text=+) `indicates new file`

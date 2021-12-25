@@ -43,14 +43,56 @@ def place_set_as_marking(places):
     return m
 
 
-def pre_set(elem):
+def reset_pre_set(elem):
+    pre = set() 
+    for a in elem.in_arcs:
+        if is_reset_arc(a):
+            pre.add(a.source)
+    return pre
+
+def inhibitor_pre_set(elem):
+    pre = set() 
+    for a in elem.in_arcs:
+        if is_inhibitor_arc(a):
+            pre.add(a.source)
+    return pre
+
+def normal_pre_set(elem):
+    pre = set() 
+    for a in elem.in_arcs:
+        if is_normal_arc(a):
+            pre.add(a.source)
+    return pre
+
+def pre_set(elem, arctype=None):
     pre = set()
     for a in elem.in_arcs:
         pre.add(a.source)
     return pre
 
 
-def post_set(elem):
+def reset_post_set(elem):
+    post = set()
+    for a in elem.out_arcs:
+        if is_reset_arc(a):
+            post.add(a.target)
+    return post
+
+def inhibitor_post_set(elem):
+    post = set()
+    for a in elem.out_arcs:
+        if is_inhibitor_arc(a):
+            post.add(a.target)
+    return post
+
+def normal_post_set(elem):
+    post = set()
+    for a in elem.out_arcs:
+        if is_normal_arc(a):
+            post.add(a.target)
+    return post
+
+def post_set(elem, arctype=None):
     post = set()
     for a in elem.out_arcs:
         post.add(a.target)
@@ -167,6 +209,56 @@ def add_arc_from_to(fr, to, net, weight=1):
 
     return a
 
+def add_inhibitor_arc_from_to(fr, to, net):
+    """
+    Adds an inhibitor arc from a specific element to another element in some net. Assumes from and to are in the net!
+
+    Parameters
+    ----------
+    fr: transition/place from
+    to:  transition/place to
+    net: net to use
+
+    Returns
+    -------
+    None
+    """
+    a = PetriNet.Arc(fr, to, properties={properties.ARCTYPE: properties.INHIBITOR_ARC})
+    net.arcs.add(a)
+    fr.out_arcs.add(a)
+    to.in_arcs.add(a)
+
+    return a
+
+def add_reset_arc_from_to(fr, to, net):
+    """
+    Adds a reset arc from a specific element to another element in some net. Assumes from and to are in the net!
+
+    Parameters
+    ----------
+    fr: transition/place from
+    to:  transition/place to
+    net: net to use
+
+    Returns
+    -------
+    None
+    """
+    a = PetriNet.Arc(fr, to, properties={properties.ARCTYPE: properties.RESET_ARC})
+    net.arcs.add(a)
+    fr.out_arcs.add(a)
+    to.in_arcs.add(a)
+
+    return a
+
+def is_reset_arc(arc):
+    return properties.ARCTYPE in arc.properties and arc.properties[properties.ARCTYPE] == properties.RESET_ARC
+
+def is_inhibitor_arc(arc):
+    return properties.ARCTYPE in arc.properties and arc.properties[properties.ARCTYPE] == properties.INHIBITOR_ARC
+
+def is_normal_arc(arc):
+    return not (properties.ARCTYPE in arc.properties)
 
 def construct_trace_net(trace, trace_name_key=xes_util.DEFAULT_NAME_KEY, activity_key=xes_util.DEFAULT_NAME_KEY):
     """
@@ -308,6 +400,48 @@ def get_transition_by_name(net, transition_name):
     for t in net.transitions:
         if t.name == transition_name:
             return t
+    return None
+
+def get_place_by_name(net, place_name):
+    """
+    Get a place by its name
+
+    Parameters
+    ------------
+    net
+        Petri net
+    place_name
+        Place name
+
+    Returns
+    ------------
+    place
+        Place object
+    """
+    for p in net.places:
+        if p.name == place_name:
+            return p
+    return None
+
+def get_place_by_prefix_postfix(net, prefix, postfix, separator):
+    """
+    Get a place by its prefix and postfix in name
+
+    Parameters
+    ------------
+    net
+        Petri net
+    place_name
+        Place name
+
+    Returns
+    ------------
+    place
+        Place object
+    """
+    for p in net.places:
+        if len(p.name.split(separator)) > 0 and p.name.split(separator)[0] == prefix and p.name.split(separator)[-1] == postfix:
+            return p
     return None
 
 

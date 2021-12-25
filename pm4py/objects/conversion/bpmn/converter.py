@@ -16,15 +16,17 @@
 '''
 from enum import Enum
 
-from pm4py.objects.conversion.bpmn.variants import to_petri_net
+from pm4py.objects.conversion.bpmn.variants import to_petri_net, to_reset_net
 from pm4py.util import exec_utils
 
 
 class Variants(Enum):
     TO_PETRI_NET = to_petri_net
+    RESET_VARIANT = to_reset_net
 
 
 DEFAULT_VARIANT = Variants.TO_PETRI_NET
+RESET_VARIANT = Variants.RESET_VARIANT
 
 
 def apply(obj, variant=DEFAULT_VARIANT, parameters=None):
@@ -32,3 +34,4 @@ def apply(obj, variant=DEFAULT_VARIANT, parameters=None):
         parameters = {}
 
     return exec_utils.get_variant(variant).apply(obj, parameters=parameters)
+

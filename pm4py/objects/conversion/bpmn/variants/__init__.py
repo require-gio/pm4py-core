@@ -14,4 +14,4 @@
     You should have received a copy of the GNU General Public License
     along with PM4Py.  If not, see <https://www.gnu.org/licenses/>.
 '''
-from pm4py.objects.conversion.bpmn.variants import to_petri_net
+from pm4py.objects.conversion.bpmn.variants import to_petri_net, to_reset_net
