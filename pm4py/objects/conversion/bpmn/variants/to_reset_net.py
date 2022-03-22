@@ -15,6 +15,7 @@ from pm4py.objects.bpmn.obj import BPMN
 
 # specifies whether or not boundary transitions and events should be treated as tasks, i.e no silent transitions
 INCLUDE_EVENTS = "include_events"
+REDUCED = "reduced"
 OPTIMIZE = "optimize"
 
 class Parameters(Enum):
@@ -75,7 +76,8 @@ def apply(bpmn_graph, parameters=None):
     import networkx as nx
 
     include_events = parameters[INCLUDE_EVENTS] if INCLUDE_EVENTS in parameters else True
-    optimize = parameters[OPTIMIZE] if OPTIMIZE in parameters else True
+    reduced = parameters[REDUCED] if REDUCED in parameters else True
+    optimize = parameters[OPTIMIZE] if OPTIMIZE in parameters else False
 
     # Preprocessing step that removes multiple arcs from a task/event object and replaces them with a XOR
     nodes = [node for node in bpmn_graph.get_nodes()]
@@ -352,6 +354,11 @@ def apply(bpmn_graph, parameters=None):
                 out_arc_place = flow_place[boundary_event.get_out_arcs()[0]]
                 # add arc from newly created (silent) transition to outgoing flow place
                 add_arc_from_to(boundary_transition, out_arc_place, net)
+                # add start place for boundary trans
+                boundary_start_place = PetriNet.Place("boundary@@@" + str(boundary_event.get_id()) + "@@@" + subprocess.get_process(),
+                  properties={"process": subprocess.get_process()})
+                net.places.add(boundary_start_place)
+                add_arc_from_to(boundary_start_place, boundary_transition, net)
 
                 # internal exception
                 if isinstance(boundary_event, (BPMN.ErrorBoundaryEvent, BPMN.CancelBoundaryEvent)):
@@ -363,23 +370,19 @@ def apply(bpmn_graph, parameters=None):
                     # get corresponding places
                     subprocess_end_places = [place for place in end_places[activity_id] if place.name.split("@@@")[0] == concrete_type and \
                         place.name.split("@@@")[1] == boundary_event_name and place.name.split("@@@")[-1] == activity_id]
-                    main_end_place = subprocess_end_places[0]
-                    ignore_places.append(main_end_place)
-                    # add arc from end event place to newly created (silent) transition
-                    add_arc_from_to(main_end_place, boundary_transition, net)
-                    # get pre transitions
-                    # put this line after the removal of redundant places ?
-                    pre_transition = list(main_end_place.in_arcs)[0].source
-                    reset_transitions.append(pre_transition)
                     # remove the other redundant places and redirect all arcs to the main place
-                    for place in subprocess_end_places[1:]:
-                        while True:
-                            if len(place.in_arcs) > 0:
-                                add_arc_from_to(list(place.in_arcs)[0].source, main_end_place, net)
-                                remove_arc(net, list(place.in_arcs)[0])
-                            else:
-                                break
-                        remove_place(net, place)
+                    for place in subprocess_end_places:
+                        ignore_places.append(place)
+                        intermediate_transition = PetriNet.Transition(name="t-intermediate@@@" + str(boundary_event.get_id()) + "@@@" + subprocess.get_process(),
+                            label=None, properties={"process": subprocess.get_process()})
+                        net.transitions.add(intermediate_transition)
+                        # add arc from end event place to newly created (silent) transition
+                        add_arc_from_to(place, intermediate_transition, net)
+                        add_arc_from_to(intermediate_transition, boundary_start_place, net)
+                        # get pre transitions
+                        # put this line after the removal of redundant places ?
+                        pre_transition = list(place.in_arcs)[0].source
+                        reset_transitions.append(pre_transition)
 
                     # apply optimization, use only reset arcs on parallel places
                     if optimize:
@@ -423,7 +426,9 @@ def apply(bpmn_graph, parameters=None):
         for termination_event in termination_events:
             in_flow = list(termination_event.in_arcs)[0]
             termination_end_place = flow_place[in_flow]
-            termination_transition = list(termination_end_place.in_arcs)[0].source
+            termination_transition = PetriNet.Transition("t-terminate-end@@@" + termination_event.get_id() + "@@@" + activity_id + "@@@" + subprocess.get_process(),
+                label=None, properties={"process": subprocess.get_process()})
+            net.transitions.add(termination_transition)
 
             # apply optimization, use only reset arcs on parallel places
             if optimize:
@@ -437,11 +442,8 @@ def apply(bpmn_graph, parameters=None):
 
             # add arc to outgoing place of subprocess
             subprocess_end_transition_out_arc_place = list(get_transition_by_name(net, "t-end-subprocess@@@" + activity_id + "@@@" + subprocess.get_process()).out_arcs)[0].target
-            terminate_skip_trans = PetriNet.Transition("t-terminate-end@@@" + termination_event.get_id() + "@@@" + activity_id + "@@@" + subprocess.get_process(),
-                label=None, properties={"process": subprocess.get_process()})
-            net.transitions.add(terminate_skip_trans)
-            add_arc_from_to(termination_end_place, terminate_skip_trans, net)
-            add_arc_from_to(terminate_skip_trans, subprocess_end_transition_out_arc_place, net)
+            add_arc_from_to(termination_end_place, termination_transition, net)
+            add_arc_from_to(termination_transition, subprocess_end_transition_out_arc_place, net)
 
         # TODO: rename all places and transitions inside the subprocess so they refer to the subprocess that is higher in hierarchy --> makes it possible to handle subs in subs
         # on the other hand, the termination event handling on global scale could have a problem with ambiguous names, ideally, we remove the prefix on the already handled
@@ -460,8 +462,9 @@ def apply(bpmn_graph, parameters=None):
     for termination_event in termination_events:
             in_flow = list(termination_event.in_arcs)[0]
             termination_end_place = flow_place[in_flow]
-            termination_transition = list(termination_end_place.in_arcs)[0].source
-            pre_places = [arc.source for arc in termination_transition.in_arcs if is_normal_arc(arc)]
+            termination_transition = PetriNet.Transition("t-terminate-end@@@" + termination_event.get_id() + "@@@" + main_process_id,
+                label=None, properties={"process": main_process_id})
+            net.transitions.add(termination_transition)
            
             if optimize:
                 places = parallel_places(termination_event, blocks, flow_place, net, bpmn_graph)
@@ -470,18 +473,16 @@ def apply(bpmn_graph, parameters=None):
             else:
                 for place in net.places:
                     # add reset arc for all places except the terminate end place
-                    if len(place.name.split("@@@")) > 0 and  place.name.split("@@@")[0] != "terminate"  and place not in pre_places:
+                    if len(place.name.split("@@@")) > 0 and  place.name.split("@@@")[0] != "terminate"  and place != termination_end_place:
                         add_reset_arc_from_to(place, termination_transition, net)
 
             # add arc to global sink place
             global_end_place = get_place_by_prefix_postfix(net, "sink", main_process_id, "@@@")
-            terminate_skip_trans = PetriNet.Transition("t-terminate-end@@@" + termination_event.get_id() + "@@@" + main_process_id,
-                label=None, properties={"process": main_process_id})
-            net.transitions.add(terminate_skip_trans)
-            add_arc_from_to(termination_end_place, terminate_skip_trans, net)
-            add_arc_from_to(terminate_skip_trans, global_end_place, net)
+            add_arc_from_to(termination_end_place, termination_transition, net)
+            add_arc_from_to(termination_transition, global_end_place, net)
 
     # apply reduction rules
-    apply_reset_inhibitor_net_reduction(net, im, fm)
+    if reduced:
+        apply_reset_inhibitor_net_reduction(net, im, fm)
 
     return net, im, fm
